@@ -41,11 +41,11 @@ fuelConsumptionBetweenCurrentAndLastFueling(date: "14/12/2022", distance: 160.0,
 
 func convertinLiterPer100KmToMpg (liters: Double) -> Double {
     
-    let mpg = liters * 2.3522
+    let mpg = liters * 235.214583
     return mpg
 }
 
-print("\(convertinLiterPer100KmToMpg(liters: 10.0)) = mpg")
+print("\(convertinLiterPer100KmToMpg(liters: 10.0)) mpg")
 
 // Task 1.4
 func calculationAveragePricePerKilometer (pricePerLiterPrice: Double) {
