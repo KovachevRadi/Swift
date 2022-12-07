@@ -41,7 +41,7 @@ fuelConsumptionBetweenCurrentAndLastFueling(date: "14/12/2022", distance: 160.0,
 
 func convertinLiterPer100KmToMpg (liters: Double) -> Double {
     
-    let mpg = liters * 235.214583
+    let mpg = 282.48 / liters
     return mpg
 }
 
