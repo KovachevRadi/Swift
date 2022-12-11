@@ -138,3 +138,4 @@ card.cardAccounts = [Currency.USD.rawValue: 0.0, Currency.EUR.rawValue: 60.0, Cu
 card.cardAccounts = atm.withdrawing(card: card, amount: 150.0, pin: "1919")
 print(atm.printATMBalance())
 print(card.printCardBalance())
+
