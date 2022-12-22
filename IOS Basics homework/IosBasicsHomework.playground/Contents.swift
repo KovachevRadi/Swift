@@ -1,52 +1,22 @@
 import UIKit
 
-enum Currency: String {
-    case BGN
-    case EUR
-    case USD
-    
-    var rateToBGN: Double {
-        switch self {
-        case .BGN:
-            return 1
-        case .EUR:
-            return 1.956
-        case .USD:
-            return 1.858
+    enum Currency: String {
+        case BGN
+        case EUR
+        case USD
+        
+        var rateToBGN: Double {
+            switch self {
+            case .BGN:
+                return 1
+            case .EUR:
+                return 1.956
+            case .USD:
+                return 1.858
+            }
         }
     }
-    
-    func convertToBGN(amount: Double, currencyFeeInPercent: Double) -> Double {
-        switch self {
-        case .BGN:
-            return amount
-        case .EUR, .USD:
-            return amount*(self.rateToBGN/(1+currencyFeeInPercent/100))
-        }
-    }
-    
-    func convertToEUR(amount: Double, currencyFeeInPercent: Double) -> Double {
-        switch self {
-        case .EUR:
-            return amount
-        case .BGN:
-            return amount/(Currency.EUR.rateToBGN/(1+currencyFeeInPercent/100))
-        case .USD:
-            return amount/(Currency.USD.rateToBGN/Currency.EUR.rateToBGN/(1+currencyFeeInPercent/100))
-        }
-    }
-    
-    func convertToUSD(amount: Double, currencyFeeInPercent: Double) -> Double {
-        switch self {
-        case .USD:
-            return amount
-        case .BGN:
-            return amount/(Currency.USD.rateToBGN/(1+currencyFeeInPercent/100))
-        case .EUR:
-            return amount/(Currency.EUR.rateToBGN/Currency.USD.rateToBGN/(1+currencyFeeInPercent/100))
-        }
-    }
-}
+
     struct BankAccount {
         var owner: User
         var iban: String
@@ -62,6 +32,7 @@ enum Currency: String {
         var id: String = ""
         var changeFee: Double = 2.0
         var balances: [Currency:Double]
+        var fee:Double = 0.02
         
         init(id: String, changeFee: Double, balances: [Currency:Double]) {
             self.id = id
@@ -103,7 +74,29 @@ enum Currency: String {
             switch currency {
                 
             case .BGN:
-                getCurrencyToWithdraw
+                var currentAmount = amount
+                guard var currentBalances = card.bankAccount?.balances else {
+                    return
+                }
+                let currencyKeys = currentBalances.keys.sorted(by: {$0.rawValue < $1.rawValue}).map({$0.rawValue})
+                for item in currencyKeys {
+                    if let currencyKey = Currency(rawValue: item) {
+                        currentAmount = currentAmount / currencyKey.rateToBGN
+                        currentAmount = currencyKey != .BGN ? (currentAmount * (1 + self.fee)) : currentAmount
+                        if currentBalances[currencyKey] ?? 0.0 >= currentAmount {
+                            currentBalances[currencyKey] = (currentBalances[currencyKey] ?? 0.0) - currentAmount
+                            card.bankAccount?.balances = currentBalances
+                            self.balances[currencyKey] = (self.balances[currencyKey] ?? 0.0) - currentAmount
+                            return
+                        } else {
+                            currentBalances[currencyKey] = (currentBalances[currencyKey] ?? 0.0) - (currentBalances[currency] ?? 0.0)
+                            card.bankAccount?.balances = currentBalances
+                            self.balances[currencyKey] = (self.balances[currencyKey] ?? 0.0) - (currentBalances[currencyKey] ?? 0.0)
+                            currentAmount = currentAmount - (currentBalances[currencyKey] ?? 0.0)
+                        }
+                    }
+                }
+                
             case .EUR, .USD:
                 if var cardBalances = card.bankAccount?.balances {
                     cardBalances[currency] = cardBalances[currency] ?? 0.0 - amount
@@ -172,43 +165,34 @@ enum Currency: String {
         }
     }
     
-    func getCurrencyToWithdraw(amount: Double, fee: Double, card: Card) -> (currency: Currency?, amount: Double) {
-        guard let bankAccount = card.bankAccount else {
-            return (nil, 0.0)
-        }
-        
-        if amount <= bankAccount.balances[.BGN]! {
-            return (.BGN, amount)
-        } else if Currency.BGN.convertToEUR(amount: amount, currencyFeeInPercent: fee) <= bankAccount.balances[.EUR]! {
-            return (.EUR, Currency.BGN.convertToEUR(amount: amount, currencyFeeInPercent: fee))
-        } else if Currency.BGN.convertToUSD(amount: amount, currencyFeeInPercent: fee) <= bankAccount.balances[.USD]! {
-            return (.USD, Currency.BGN.convertToUSD(amount: amount, currencyFeeInPercent: fee))
-        } else {
-            return (nil, 0)
-        }
-    }
-    
+
     var atm = ATM(
         id: "1234",
         changeFee: 2.3,
         balances: [
-            Currency.BGN : 1000.0,
-            Currency.EUR : 1000.0,
-            Currency.USD : 1000.0
+            Currency.BGN : 800.0,
+            Currency.EUR : 600.0,
+            Currency.USD : 700.0
         ])
     
     var radko = User(id: "4532", name: "Radko")
     var goshko = User(id: "6863", name: "Goshko")
     var bankAccount = BankAccount(owner: radko, iban: "GB82 WEST 1234 5698 7654 32", balances: [
-        Currency.BGN : 100.0,
-        Currency.EUR : 100.0,
-        Currency.USD : 100.0
+        Currency.BGN : 30,
+        Currency.EUR : 70,
+        Currency.USD : 50
     ])
     
-var cardForRadko = Card(id: "8356", pinCode: "1213", user: radko, bankAccount: bankAccount)
+    var cardForRadko = Card(id: "8356", pinCode: "1213", user: radko, bankAccount: bankAccount)
     var cardForGoshko = Card(id: "9812", pinCode: "7777", user: goshko, bankAccount: bankAccount)
-    atm.withDrawMoney(card: cardForRadko, currency: .EUR, amount: 50, pinCode: "1213")
-    print(atm.balances[.EUR])
+    
 
-print()
+//Example 1
+print("Баланси преди теглене")
+print(cardForRadko.bankAccount?.balances ?? "")
+print(atm.balances)
+atm.withDrawMoney(card: cardForRadko, currency: .BGN, amount: 50, pinCode: "1213")
+print("Баланси след теглене")
+print(cardForRadko.bankAccount?.balances ?? "")
+print(atm.balances)
 
